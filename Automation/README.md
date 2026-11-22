@@ -48,7 +48,7 @@ In the verified demo output, Gemini returned **five risk assessments**, with spo
 
 ## Verified demo result
 
-![Google Sheets Automation Log, including successful run LOG-39](images/Trailhead-Mobile-Automation-Log.png)
+![Google Sheets Automation Log, including successful run LOG-39](Trailhead-Mobile-Automation-Log.png)
 
 The final test produced **LOG-39** in Google Sheets (Execution ID **39**). The central summary reported:
 
