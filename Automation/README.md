@@ -92,11 +92,6 @@ Trailhead-Mobile-AI-Automation/
 
 **The two screenshots and this README are included in the accompanying evidence ZIP.** The n8n JSON and spreadsheet export are **not** included; export them from your own n8n and Google Sheets accounts if you want a complete local backup.
 
-## Security and publishing
-
-Before uploading the workflow or workbook to a public repository, review them for private information, internal project data, spreadsheet/document IDs, email addresses, and any hardcoded credentials or tokens. Keep API keys and connected-account credentials out of GitHub. Consider using a sanitized sample dataset for a public portfolio.
-
----
 
 **Tools:** n8n · Google Sheets · Google Gemini · JavaScript (n8n Code nodes)  
 **Project type:** Project Management Automation · AI-Assisted Risk Analysis · Safe Demo
