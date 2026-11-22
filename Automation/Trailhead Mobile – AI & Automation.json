@@ -1,0 +1,620 @@
+{
+  "name": "Trailhead Mobile – AI & Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c3dde3d2-fddb-4136-a0c1-fa1115b8a70d",
+      "name": "Manual Test Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst rows = $input.all().map(item => item.json);\n\n// 1. Separate Google Sheets records\nconst taskRows = rows.filter(row => row['Task ID']);\nconst raidRows = rows.filter(row => row['RAID ID']);\nconst changeRows = rows.filter(row => row['Change ID']);\nconst stakeholderRows = rows.filter(row => row['Stakeholder ID']);\n\n// 2. Validate all four data sources\nif (taskRows.length === 0) {\n  throw new Error('No Tasks found in Google Sheets');\n}\n\nif (raidRows.length === 0) {\n  throw new Error('No RAID records found in Google Sheets');\n}\n\nif (changeRows.length === 0) {\n  throw new Error('No Change Requests found in Google Sheets');\n}\n\nif (stakeholderRows.length === 0) {\n  throw new Error('No Stakeholders found in Google Sheets');\n}\n\n// 3. Prepare Tasks\nconst tasks = taskRows.map(row => ({\n  id: String(row['Task ID']).trim(),\n  name: row['Task Name'] || '',\n  owner: row['Owner'] || '',\n  startDate: row['Start Date'] || '',\n  due: row['Due Date'] || '',\n  status: String(row['Status'] || '').trim(),\n  priority: row['Priority'] || '',\n  dependency: row['Dependency'] || '',\n  lastUpdated: row['Last Updated'] || '',\n  baselineStatus: row['Baseline Status'] || '',\n  alertStatus: row['Alert Status'] || '',\n  rowNumber: row.row_number\n}));\n\n// 4. Prepare all RAID records\nconst raid = raidRows.map(row => ({\n  id: String(row['RAID ID']).trim(),\n  type: String(row['Type'] || '').trim(),\n  description: row['Description'] || '',\n  probability: row['Probability'] || '',\n  impact: row['Impact'] || '',\n  score: row['Score'] || '',\n  responseAction: row['Response / Action'] || '',\n  owner: row['Owner'] || '',\n  reviewDate: row['Review Date'] || '',\n  status: String(row['Status'] || '').trim(),\n  sourceEvidence: row['Source / Evidence'] || '',\n  priority: '',\n  rowNumber: row.row_number\n}));\n\n// 5. Prepare Change Requests\nconst changes = changeRows.map(row => ({\n  id: String(row['Change ID']).trim(),\n  title: row['Change Title'] || '',\n  description: row['Description'] || '',\n  requestedBy: row['Requested By'] || '',\n  dateSubmitted: row['Date Submitted'] || '',\n  impactOnScope: row['Impact on Scope'] || '',\n  impactOnSchedule: row['Impact on Schedule'] || '',\n  impactOnCost: row['Impact on Cost'] || '',\n  recommendation: row['Recommended Option'] || '',\n  status: String(row['Approval Status'] || '').trim(),\n  decisionOwner: row['Decision Owner'] || '',\n  decisionDate: row['Decision Date'] || '',\n  rowNumber: row.row_number\n}));\n\n// 6. Prepare Stakeholders\nconst stakeholders = stakeholderRows.map(row => ({\n  id: String(row['Stakeholder ID']).trim(),\n  name: row['Name'] || '',\n  role: row['Role'] || '',\n  email: String(row['Email'] || '').trim(),\n  communicationType: row['Communication Type'] || '',\n  frequency: row['Frequency'] || '',\n  preferredChannel: row['Preferred Channel'] || '',\n  lastContactDate: row['Last Contact Date'] || '',\n  nextUpdateDate: row['Next Update Date'] || '',\n  communicationStatus: row['Communication Status'] || '',\n  rowNumber: row.row_number\n}));\n\n// 7. Build project object\nconst project = {\n  referenceDate: '2026-04-14',\n  tasks,\n  raid,\n  changes,\n  stakeholders\n};\n\n// 8. Return structured project data\nreturn [{\n  json: {\n    project,\n    results: [],\n    dataSources: {\n      tasks: 'Google Sheets',\n      raid: 'Google Sheets',\n      changes: 'Google Sheets',\n      stakeholders: 'Google Sheets'\n    },\n    dataValidation: {\n      taskCount: tasks.length,\n      raidCount: raid.length,\n      changeCount: changes.length,\n      stakeholderCount: stakeholders.length,\n      riskCount: raid.filter(\n        r => r.type.toLowerCase() === 'risk'\n      ).length\n    }\n  }\n}];\n"
+      },
+      "id": "9e53a563-be6c-41c6-8178-9dfda19e305e",
+      "name": "01 Demo Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$input.first().json; const ref=new Date(d.project.referenceDate+'T00:00:00Z');\nconst overdue=d.project.tasks.filter(t=>t.due && t.status && !['done','completed','closed'].includes(t.status.toLowerCase()) && new Date(t.due+'T00:00:00Z')<ref);\nconst missingStatus=d.project.tasks.filter(t=>!t.status).map(t=>t.id);\nd.results.push({automation:'Schedule Monitoring',overdue,missingStatus,note:'Missing status is unknown, not automatically overdue'});\nreturn [{json:d}];"
+      },
+      "id": "38bf7bd6-2276-4156-8c22-a3c6c89ae99d",
+      "name": "02 Schedule Monitoring",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$input.first().json; const contacts=d.project.stakeholders.map(s=>({id:s.id,name:s.name,emailConfigured:!!s.email}));\nd.results.push({automation:'Stakeholder Communication',contacts,draftPreview:'Trailhead Mobile: Release readiness update — CR-01 pending sponsor decision. This is a DEMO DRAFT only.',action:'Preview only; no email sent'});\nreturn [{json:d}];"
+      },
+      "id": "1b062754-35be-44dc-bb57-4ff4ebcb29f7",
+      "name": "03 Stakeholder Communication",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$input.first().json; const pending=d.project.changes.filter(c=>/pending|open|review/i.test(c.status));\nd.results.push({automation:'Change Request Tracking',pending,action:'Escalation recommended; no approvals or project data changed'});\nreturn [{json:d}];"
+      },
+      "id": "0cdab70c-dfe2-4372-97fb-6d7775d41162",
+      "name": "04 Change Request Tracking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst d = $input.first().json;\n\n// Select open Risks only\nconst open = d.project.raid.filter(r =>\n  String(r.type || '').trim().toLowerCase() === 'risk' &&\n  /\\bopen\\b/i.test(String(r.status || ''))\n);\n\n// Use documented actions from Google Sheets\nconst recommendations = open.map(r =>\n  `${r.id}: ${r.responseAction || 'No documented response action'}`\n);\n\nd.results.push({\n  automation: 'AI Risk Management',\n  openRisks: open,\n  recommendations,\n  note: 'Rule-based analysis using real Google Sheets RAID data. Gemini is not connected yet.'\n});\n\nreturn [{ json: d }];\n"
+      },
+      "id": "9254742e-157d-4267-964d-9e0c502602dd",
+      "name": "05 AI Risk Management",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$input.first().json; const pending=d.project.changes.filter(c=>!/approved|rejected|closed/i.test(c.status));\nd.results.push({automation:'Project Closure',ready:false,blockers:[...pending.map(c=>c.id+' unresolved'), 'iOS and Android release acceptance not confirmed','Task statuses incomplete'],action:'Readiness report only; never close automatically'});\nreturn [{json:d}];"
+      },
+      "id": "0d448162-2743-49f2-be6c-6d97ca9bef7f",
+      "name": "06 Project Closure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst d = $input.first().json;\n\nconst byName = Object.fromEntries(\n  d.results.map(r => [r.automation, r])\n);\n\nconst summary = {\n  project: 'Trailhead Mobile',\n  mode: 'DEMO PROCESSING + AUTOMATION LOG',\n  referenceDate: d.project.referenceDate,\n  branches: d.results.length,\n\n  unknownTaskStatuses:\n    byName['Schedule Monitoring'].missingStatus,\n\n  openRisks:\n    byName['AI Risk Management'].openRisks.length,\n\n  pendingChanges:\n    byName['Change Request Tracking'].pending.map(c => c.id),\n\n  closureReady:\n    byName['Project Closure'].ready,\n\n  emailsSent: 0,\n  projectDataWrites: 0,\n\n  logWriteStatus:\n    'Handled by downstream Google Sheets node',\n\n  aiStatus:\n    d.aiStatus || 'Gemini analysis unavailable'\n};\n\nreturn [{\n  json: {\n    summary,\n    results: d.results,\n\n    logPreview: {\n      'Workflow Name': 'Trailhead Mobile – AI & Automation',\n      Action: 'Demo run',\n      Result:\n        d.aiStatus === 'Gemini analysis completed successfully'\n          ? 'Completed five demo branches and Gemini AI risk analysis'\n          : 'Completed five demo branches; Gemini analysis unavailable',\n      'Error Message': '',\n      note: 'Prepared for Automation Log. Actual write occurs in the next Google Sheets node.'\n    }\n  }\n}];\n"
+      },
+      "id": "d1e09649-c60d-46bb-b7d0-9b542cc54c75",
+      "name": "07 Central Summary - Demo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM",
+          "mode": "list",
+          "cachedResultName": "Trailhead Mobile – Automation Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 669675614,
+          "mode": "list",
+          "cachedResultName": "RAID",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit#gid=669675614"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        -176
+      ],
+      "id": "f9bc0182-916a-4935-8ece-233471e1b13e",
+      "name": "GS - Read RAID",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K0YeoUQKq1XXHgS5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM",
+          "mode": "list",
+          "cachedResultName": "Trailhead Mobile – Automation Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tasks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        -400
+      ],
+      "id": "f1550014-efaa-4245-93e9-c1e74519c7aa",
+      "name": "GS - Read Tasks",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K0YeoUQKq1XXHgS5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM",
+          "mode": "list",
+          "cachedResultName": "Trailhead Mobile – Automation Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1357729735,
+          "mode": "list",
+          "cachedResultName": "Change Requests",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit#gid=1357729735"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        16
+      ],
+      "id": "9a4fed1d-2286-4506-9bac-b36becd76fe2",
+      "name": "GS - Read Change Requests",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K0YeoUQKq1XXHgS5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        304,
+        -192
+      ],
+      "id": "0432c970-9fa8-45aa-bb9e-26e75c4785fe",
+      "name": "Merge - Project Data"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM",
+          "mode": "list",
+          "cachedResultName": "Trailhead Mobile – Automation Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1022453302,
+          "mode": "list",
+          "cachedResultName": "Stakeholders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit#gid=1022453302"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        240
+      ],
+      "id": "f414962c-3090-47fa-babb-8146b9470eb5",
+      "name": "GS - Read Stakeholders",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K0YeoUQKq1XXHgS5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM",
+          "mode": "list",
+          "cachedResultName": "Trailhead Mobile – Automation Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1846627282,
+          "mode": "list",
+          "cachedResultName": "Automation Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FLGM_TlCN6v5OOnADMdPImuGMdaO4taQW_tF-I1KRiM/edit#gid=1846627282"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Execution ID": "={{ $execution.id }}",
+            "Log ID": "={{ 'LOG-' + $execution.id }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow Name": "={{ $json.logPreview[\"Workflow Name\"] }}",
+            "Action": "={{ $json.logPreview[\"Action\"] }}",
+            "Result": "={{ $json.logPreview[\"Result\"] }}",
+            "Error Message": "={{ $json.logPreview[\"Error Message\"] || \"\" }}"
+          },
+          "matchingColumns": [
+            "Execution ID"
+          ],
+          "schema": [
+            {
+              "id": "Log ID",
+              "displayName": "Log ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow Name",
+              "displayName": "Workflow Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Record ID",
+              "displayName": "Record ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Error Message",
+              "displayName": "Error Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Execution ID",
+              "displayName": "Execution ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2064,
+        160
+      ],
+      "id": "4465e40e-3d52-420a-92f4-e18a97e8a2d3",
+      "name": "GS - Write Automation Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K0YeoUQKq1XXHgS5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "Gemini 3.5 Flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\nYou are a Project Risk Analyst for the Trailhead Mobile project.\n\nAnalyze the five open risks provided below.\n\nFor each risk:\n1. Explain the potential impact on project delivery.\n2. Recommend one practical next action.\n3. Identify whether sponsor escalation is needed.\n\nRules:\n- Use only the provided project data.\n- Do not invent dates, costs, approvals, or risk scores.\n- Treat pending decisions as pending.\n- Keep recommendations concise and professional.\n- Do not send emails or modify project records.\n- Respond in English.\n\nReturn valid JSON only, using this structure:\n{\n  \"risks\": [\n    {\n      \"id\": \"R01\",\n      \"assessment\": \"...\",\n      \"nextAction\": \"...\",\n      \"sponsorEscalation\": \"Yes or No\"\n    }\n  ]\n}\n\nOPEN RISKS:\n{{ JSON.stringify($('05 AI Risk Management').first().json.results.find(r => r.automation === 'AI Risk Management').openRisks.map(r => ({ id: r.id, description: r.description, probability: r.probability, impact: r.impact, responseAction: r.responseAction, status: r.status }))) }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        160
+      ],
+      "id": "111e568e-e7dd-4344-beea-76003881c7a6",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R4FPVJfGqv3FdDox",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst gemini = $input.first().json;\n\n// Read Gemini's response\nconst rawText =\n  gemini.content?.parts?.find(p => typeof p.text === 'string')?.text\n  ?? gemini.text\n  ?? gemini.output;\n\nif (!rawText) {\n  throw new Error('Gemini response text was not found');\n}\n\n// Remove Markdown code fences\nconst cleanText = rawText\n  .replace(/^\\s*```(?:json)?\\s*/i, '')\n  .replace(/\\s*```\\s*$/, '')\n  .trim();\n\nconst analysis = JSON.parse(cleanText);\n\n// Restore original project data\nconst data = JSON.parse(\n  JSON.stringify($('05 AI Risk Management').first().json)\n);\n\nconst riskResult = data.results.find(\n  r => r.automation === 'AI Risk Management'\n);\n\nif (!riskResult) {\n  throw new Error('Risk Management result not found');\n}\n\n// Validate the five risk IDs\nconst expectedIds = riskResult.openRisks.map(r => r.id);\nconst aiRisks = analysis.risks;\n\nif (\n  !Array.isArray(aiRisks) ||\n  aiRisks.length !== expectedIds.length ||\n  new Set(aiRisks.map(r => r.id)).size !== expectedIds.length ||\n  !expectedIds.every(id => aiRisks.some(r => r.id === id))\n) {\n  throw new Error('Gemini risk IDs do not match the source data');\n}\n\n// Attach AI analysis without replacing original data\nriskResult.aiAnalysis = aiRisks.map(r => ({\n  id: r.id,\n  assessment: r.assessment,\n  nextAction: r.nextAction,\n  sponsorEscalation: r.sponsorEscalation\n}));\n\nriskResult.note =\n  'Rule-based risk identification with Gemini AI recommendations. Advisory only; no decisions or records modified.';\n\ndata.aiStatus = 'Gemini analysis completed successfully';\n\nreturn [{ json: data }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        160
+      ],
+      "id": "39a3d04e-b00f-4916-8e10-fe38b68ed397",
+      "name": "AI Risk Analysis Integration"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Test Trigger": {
+      "main": [
+        [
+          {
+            "node": "GS - Read RAID",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GS - Read Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GS - Read Change Requests",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GS - Read Stakeholders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 Demo Input": {
+      "main": [
+        [
+          {
+            "node": "02 Schedule Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 Schedule Monitoring": {
+      "main": [
+        [
+          {
+            "node": "03 Stakeholder Communication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 Stakeholder Communication": {
+      "main": [
+        [
+          {
+            "node": "04 Change Request Tracking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 Change Request Tracking": {
+      "main": [
+        [
+          {
+            "node": "05 AI Risk Management",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 AI Risk Management": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 Project Closure": {
+      "main": [
+        [
+          {
+            "node": "07 Central Summary - Demo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 Central Summary - Demo": {
+      "main": [
+        [
+          {
+            "node": "GS - Write Automation Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS - Read RAID": {
+      "main": [
+        [
+          {
+            "node": "Merge - Project Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GS - Read Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge - Project Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS - Read Change Requests": {
+      "main": [
+        [
+          {
+            "node": "Merge - Project Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge - Project Data": {
+      "main": [
+        [
+          {
+            "node": "01 Demo Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS - Read Stakeholders": {
+      "main": [
+        [
+          {
+            "node": "Merge - Project Data",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "AI Risk Analysis Integration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Risk Analysis Integration": {
+      "main": [
+        [
+          {
+            "node": "06 Project Closure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7b4f41a1-6c2d-441e-b326-c65809482d63",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e62665e663e7fad6c5c9e0b1f0f963653d42e20b2126e451086c53766b66b0e6"
+  },
+  "nodeGroups": [],
+  "id": "Lx0DjprjlPP6qbXA",
+  "tags": []
+}
