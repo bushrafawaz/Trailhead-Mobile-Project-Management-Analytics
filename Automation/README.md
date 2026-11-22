@@ -8,7 +8,7 @@ This portfolio project extends the Trailhead Mobile project management practicum
 
 ## Workflow overview
 
-![Successful n8n workflow execution](images/Trailhead-Mobile-Workflow.png)
+![Successful n8n workflow execution](images/Trailhead-Mobile-Automation-Log.png)
 
 **Flow:** Manual Test Trigger → Read four Google Sheets tabs → Merge Project Data → Demo Input → Schedule Monitoring → Stakeholder Communication → Change Request Tracking → AI Risk Management → Gemini (`Message a model`) → AI Risk Analysis Integration → Project Closure → Central Summary → Write Automation Log.
 
